@@ -17,10 +17,40 @@ app.configure(function() {
   app.use(partials());
   app.use(express.bodyParser());
   app.use(express.static(__dirname + '/public'));
+  // authentication code from
+  // http://www.9bitstudios.com/2013/09/express-js-authentication/
+  app.use(express.cookieParser('shhhh, very secret'));
+  app.use(express.session());
 });
 
+// authentication code from
+// http://www.9bitstudios.com/2013/09/express-js-authentication/
+function restrict(req, res, next) {
+  if (req.session.user) {
+    console.log(req.session.greg);
+    next();
+  } else {
+    req.session.error = 'Access denied!';
+    res.redirect('/login');
+  }
+}
+
+////////////////////////////////////////////////////////////////////////////////////
+
+// app.get('/restricted', restrict, function(req, res){
+//   response.send('This is the restricted area! Hello ' + request.session.user + '! click <a href="/logout">here to logout</a>');
+// });
+
+////////////////////////////////
+
+
 // initial page IS login page
-app.get('/', function(req, res) {
+app.get('/', restrict, function(req, res){
+  res.render('index');
+  console.log('redirecting');
+});
+
+app.get('/login', function(req, res){
   res.render('login');
 });
 
@@ -28,7 +58,7 @@ app.get('/signup', function(req, res) {
   res.render('signup');
 });
 
-app.get('/create', function(req, res) {
+app.get('/create', restrict, function(req, res) {
   res.render('index');
 });
 
@@ -106,31 +136,28 @@ app.post('/signup', function(req, res){
 app.post('/login', function(req, res){
   // var username = req.body.username;
   // var password = req.body.password;
-
   var userInfo = req.body;
-
   // check if the username is already taken
   new User({ username: userInfo.username }).fetch().then(function(found) {
     if (found) {
       if(found.attributes.password === userInfo.password){
-        console.log(found.attributes);
-        res.render('/links');
+        req.session.regenerate(function(){
+          req.session.user = userInfo.username;
+          req.session.greg = "passing whatever";
+          // res.redirect('/restricted');
+          // console.log(found.attributes);
+          res.redirect('/');
+        });
       }
-      // res.send(200, 'user Name Taken!');
+    }else{
+      res.redirect('/login');
     }
-    // else{
-    //   // no
-    //   // save data
-    //   // redirect to login page
-    //   var user = new User({
-    //     username: userInfo.username,
-    //     password: userInfo.password
-    //   });
-    //   // we save the new link
-    //   user.save().then(function() {
-    //     res.send(200, "success! You're a member!!!");
-    //   });
-    // }
+  });
+});
+
+app.get('/logout', function(req, res){
+  req.session.destroy(function(){
+      res.redirect('/login');
   });
 });
 
