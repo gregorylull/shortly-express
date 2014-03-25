@@ -41,6 +41,7 @@ db.knex.schema.hasTable('clicks').then(function(exists) {
   }
 });
 
+
 /************************************************************/
 // Add additional schema definitions below
 /************************************************************/
@@ -54,6 +55,19 @@ db.knex.schema.hasTable('users').then(function(exists) {
       user.timestamps();
     }).then(function (table) {
       console.log('Created Table users', table);
+    });
+  }
+});
+
+db.knex.schema.hasTable('users_urls').then(function (exists) {
+  if (!exists) {
+    db.knex.schema.createTable('users_urls', function (userUrl) {
+      userUrl.increments('id').primary();
+      userUrl.integer('user_id');
+      userUrl.integer('link_id');
+      userUrl.timestamps();
+    }).then(function (table) {
+      console.log('Created Table users urls join', table);
     });
   }
 });

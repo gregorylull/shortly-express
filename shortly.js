@@ -8,6 +8,7 @@ var User = require('./app/models/user');
 var Links = require('./app/collections/links');
 var Link = require('./app/models/link');
 var Click = require('./app/models/click');
+var UsersUrls = require('./app/models/userurl');
 var bcrypt = require('bcrypt-nodejs');
 
 var app = express();
@@ -35,12 +36,6 @@ function checkUser(req, res, next) {
     res.redirect('/login');
   }
 }
-
-// route = {
-//   '/' : homeHandler,
-//   '/create' : etc
-// };
-
 
 var getRequestHandler = function(path, renderPage){
   app.get(path, checkUser, function(req, res){
@@ -75,9 +70,13 @@ app.get('/signup', function(req, res) {
 });
 
 app.get('/links', function(req, res) {
+  // give fetch options:
+  // {withRelated: [...]}
   Links.reset().fetch().then(function(links) {
     res.send(200, links.models);
   });
+
+  // fetch all links with current sessionID
 });
 
 app.post('/links', function(req, res) {
@@ -94,6 +93,11 @@ app.post('/links', function(req, res) {
     // found -> we retrieve the attributes
     if (found) {
       res.send(200, found.attributes);
+      var userUrl = new UsersUrls({
+        user_id: req.session.userId,
+        link_id: found.attributes.id
+      });
+      userUrl.save();
     } else {
       util.getUrlTitle(uri, function(err, title) {
         if (err) {
@@ -109,6 +113,13 @@ app.post('/links', function(req, res) {
       // we save the new link
         link.save().then(function(newLink) {
           Links.add(newLink);
+          console.log('UserID:',req.session.userId);
+          console.log('newLink:',newLink.id);
+          // var userUrl = new UsersUrls({
+          //   user_id: req.session.userId,
+          //   link_id: newLink.id
+          // });
+          // userUrl.save();
           res.send(200, newLink);
         });
       });
@@ -145,7 +156,8 @@ app.post('/login', function(req, res){
       if(bcrypt.compareSync(userInfo.password, found.attributes.password)){
         req.session.regenerate(function(){
           req.session.user = userInfo.username;
-          req.session.greg = "passing whatever";
+          // here we attach the userId to our session object
+          req.session.userId = found.attributes.id;
           // res.redirect('/restricted');
           // console.log(found.attributes);
           res.redirect('/');
