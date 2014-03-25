@@ -8,6 +8,7 @@ var User = require('./app/models/user');
 var Links = require('./app/collections/links');
 var Link = require('./app/models/link');
 var Click = require('./app/models/click');
+var bcrypt = require('bcrypt-nodejs');
 
 var app = express();
 
@@ -25,7 +26,7 @@ app.configure(function() {
 
 // authentication code from
 // http://www.9bitstudios.com/2013/09/express-js-authentication/
-function restrict(req, res, next) {
+function checkUser(req, res, next) {
   if (req.session.user) {
     console.log(req.session.greg);
     next();
@@ -35,19 +36,34 @@ function restrict(req, res, next) {
   }
 }
 
-////////////////////////////////////////////////////////////////////////////////////
+// route = {
+//   '/' : homeHandler,
+//   '/create' : etc
+// };
 
-// app.get('/restricted', restrict, function(req, res){
-//   response.send('This is the restricted area! Hello ' + request.session.user + '! click <a href="/logout">here to logout</a>');
+
+var getRequestHandler = function(path, renderPage){
+  app.get(path, checkUser, function(req, res){
+    res.render(renderPage);
+  });
+};
+
+// app.get('/:path', checkUser, function (req, res) {
+//   console.log(req.params.path);
+//   path = req.params.path;
+//   res.render(path);
 // });
 
-////////////////////////////////
-
-
 // initial page IS login page
-app.get('/', restrict, function(req, res){
+app.get('/', checkUser, function(req, res){
   res.render('index');
   console.log('redirecting');
+});
+
+// getRequestHandler('/', 'index');
+
+app.get('/create', checkUser, function(req, res) {
+  res.render('index');
 });
 
 app.get('/login', function(req, res){
@@ -56,10 +72,6 @@ app.get('/login', function(req, res){
 
 app.get('/signup', function(req, res) {
   res.render('signup');
-});
-
-app.get('/create', restrict, function(req, res) {
-  res.render('index');
 });
 
 app.get('/links', function(req, res) {
@@ -106,41 +118,31 @@ app.post('/links', function(req, res) {
 
 // when users sign in with their username and password
 app.post('/signup', function(req, res){
-  // var username = req.body.username;
-  // var password = req.body.password;
-
   var userInfo = req.body;
-
   // check if the username is already taken
   new User({ username: userInfo.username }).fetch().then(function(found) {
     if (found) {
-      // yes
-        // redirect to signup with message, (already taken)
       res.send(200, 'user Name Taken!');
     }else{
-      // no
-      // save data
-      // redirect to login page
       var user = new User({
         username: userInfo.username,
         password: userInfo.password
       });
       // we save the new link
       user.save().then(function() {
-        res.send(200, "success! You're a member!!!");
+        res.redirect('/login');
       });
     }
   });
 });
 
 app.post('/login', function(req, res){
-  // var username = req.body.username;
-  // var password = req.body.password;
   var userInfo = req.body;
   // check if the username is already taken
+  //bcrypt.compareSync("bacon", hash); // true
   new User({ username: userInfo.username }).fetch().then(function(found) {
     if (found) {
-      if(found.attributes.password === userInfo.password){
+      if(bcrypt.compareSync(userInfo.password, found.attributes.password)){
         req.session.regenerate(function(){
           req.session.user = userInfo.username;
           req.session.greg = "passing whatever";
