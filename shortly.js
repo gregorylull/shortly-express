@@ -15,12 +15,17 @@ app.configure(function() {
   app.set('views', __dirname + '/views');
   app.set('view engine', 'ejs');
   app.use(partials());
-  app.use(express.bodyParser())
+  app.use(express.bodyParser());
   app.use(express.static(__dirname + '/public'));
 });
 
+// initial page IS login page
 app.get('/', function(req, res) {
-  res.render('index');
+  res.render('login');
+});
+
+app.get('/signup', function(req, res) {
+  res.render('signup');
 });
 
 app.get('/create', function(req, res) {
@@ -30,18 +35,21 @@ app.get('/create', function(req, res) {
 app.get('/links', function(req, res) {
   Links.reset().fetch().then(function(links) {
     res.send(200, links.models);
-  })
+  });
 });
 
 app.post('/links', function(req, res) {
   var uri = req.body.url;
 
+  // if the url is not valid just redirect
   if (!util.isValidUrl(uri)) {
     console.log('Not a valid url: ', uri);
     return res.send(404);
   }
 
+  // we create an instance of link and check if it exists in the database
   new Link({ url: uri }).fetch().then(function(found) {
+    // found -> we retrieve the attributes
     if (found) {
       res.send(200, found.attributes);
     } else {
@@ -50,19 +58,79 @@ app.post('/links', function(req, res) {
           console.log('Error reading URL heading: ', err);
           return res.send(404);
         }
-
+      // we instantiate a new link with the new information
         var link = new Link({
           url: uri,
           title: title,
-          base_url: req.headers.origin
+          base_url: req.headers.origin   // what's this
         });
-
+      // we save the new link
         link.save().then(function(newLink) {
           Links.add(newLink);
           res.send(200, newLink);
         });
       });
     }
+  });
+});
+
+// when users sign in with their username and password
+app.post('/signup', function(req, res){
+  // var username = req.body.username;
+  // var password = req.body.password;
+
+  var userInfo = req.body;
+
+  // check if the username is already taken
+  new User({ username: userInfo.username }).fetch().then(function(found) {
+    if (found) {
+      // yes
+        // redirect to signup with message, (already taken)
+      res.send(200, 'user Name Taken!');
+    }else{
+      // no
+      // save data
+      // redirect to login page
+      var user = new User({
+        username: userInfo.username,
+        password: userInfo.password
+      });
+      // we save the new link
+      user.save().then(function() {
+        res.send(200, "success! You're a member!!!");
+      });
+    }
+  });
+});
+
+app.post('/login', function(req, res){
+  // var username = req.body.username;
+  // var password = req.body.password;
+
+  var userInfo = req.body;
+
+  // check if the username is already taken
+  new User({ username: userInfo.username }).fetch().then(function(found) {
+    if (found) {
+      if(found.attributes.password === userInfo.password){
+        console.log(found.attributes);
+        res.render('/links');
+      }
+      // res.send(200, 'user Name Taken!');
+    }
+    // else{
+    //   // no
+    //   // save data
+    //   // redirect to login page
+    //   var user = new User({
+    //     username: userInfo.username,
+    //     password: userInfo.password
+    //   });
+    //   // we save the new link
+    //   user.save().then(function() {
+    //     res.send(200, "success! You're a member!!!");
+    //   });
+    // }
   });
 });
 
